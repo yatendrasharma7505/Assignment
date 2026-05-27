@@ -1,4 +1,5 @@
 import 'package:assignment/cubit/reels_cubit.dart';
+import 'package:assignment/model/response/reels_response.dart';
 import 'package:assignment/view/widgets/reel_widget.dart';
 import 'package:cached_video_player_plus/cached_video_player_plus.dart';
 import 'package:flutter/material.dart';
@@ -12,10 +13,14 @@ class ReelsScreen extends StatefulWidget {
 }
 
 class _ReelsScreenState extends State<ReelsScreen> {
-  final PageController _pageController = PageController();
-  final Map<int, CachedVideoPlayerPlusController> _controllers = {};
-  int _currentPage = 0;
-  int _totalItems = 0;
+
+  final PageController pageController = PageController();
+
+  Map<int, CachedVideoPlayerPlusController> controllers = {};
+
+  int currentPage = 0;
+
+  List<Document> reels = [];
 
   @override
   void initState() {
@@ -23,100 +28,109 @@ class _ReelsScreenState extends State<ReelsScreen> {
     context.read<ReelsCubit>().fetchReels();
   }
 
+  void loadVideo(int index) async {
+
+    if (controllers[index] != null) return;
+
+    final controller = CachedVideoPlayerPlusController.networkUrl(
+      Uri.parse(reels[index].fields.url.stringValue),
+    );
+
+    controllers[index] = controller;
+
+    await controller.initialize();
+
+    controller.setLooping(true);
+
+    if (index == currentPage) {
+      controller.play();
+    }
+
+    setState(() {});
+  }
+
   @override
   void dispose() {
-    _pageController.dispose();
-    for (final c in _controllers.values) {
-      c.dispose();
+
+    for (var item in controllers.values) {
+      item.dispose();
     }
+
+    pageController.dispose();
+
     super.dispose();
-  }
-
-  void _onPageChanged(int index) {
-    final prev = _currentPage;
-    _currentPage = index;
-    _manageControllers();
-    _handlePlayPause(prev, index);
-  }
-
-  void _handlePlayPause(int prev, int current) {
-    _controllers[prev]?.pause();
-    _controllers[current]?.play();
-  }
-
-  void _manageControllers() {
-    final needed = <int>{};
-    for (int i = 0; i < 4; i++) {
-      final idx = _currentPage + i;
-      if (idx < _totalItems) needed.add(idx);
-    }
-
-    _controllers.removeWhere((key, c) {
-      if (!needed.contains(key)) {
-        c.dispose();
-        return true;
-      }
-      return false;
-    });
-
-    for (final idx in needed) {
-      if (!_controllers.containsKey(idx)) {
-        _initController(idx);
-      }
-    }
-  }
-
-  void _initController(int index) {
-    final docs = (context.read<ReelsCubit>().state as ReelsLoaded)
-        .reels
-        .documents;
-    if (index >= docs.length) return;
-    final url = docs[index].fields.url.stringValue.trim();
-    final controller = CachedVideoPlayerPlusController.networkUrl(Uri.parse(url));
-    _controllers[index] = controller;
-    controller.initialize().then((_) {
-      if (mounted) {
-        if (index == _currentPage) controller.play();
-        setState(() {});
-      }
-    });
   }
 
   @override
   Widget build(BuildContext context) {
+
     return Scaffold(
-      body: BlocBuilder<ReelsCubit, ReelsState>(
-        builder: (context, state) {
-          if (state is ReelsLoading) {
-            return const Center(child: CircularProgressIndicator());
+
+      backgroundColor: Colors.black,
+
+      body: BlocConsumer<ReelsCubit, ReelsState>(
+
+        listener: (context, state) {
+
+          if (state is ReelsLoaded) {
+
+            reels = state.reels.documents;
+
+            loadVideo(0);
           }
-          if (state is ReelsError) {
-            return Center(
-              child: Text(state.message, style: const TextStyle(color: Colors.white)),
+        },
+
+        builder: (context, state) {
+
+          if (state is ReelsLoading) {
+            return const Center(
+              child: CircularProgressIndicator(),
             );
           }
-          if (state is ReelsLoaded) {
-            final docs = state.reels.documents;
-            _totalItems = docs.length;
-            if (_controllers.isEmpty && docs.isNotEmpty) {
-              WidgetsBinding.instance.addPostFrameCallback((_) => _manageControllers());
-            }
-            return PageView.builder(
-              controller: _pageController,
-              scrollDirection: Axis.vertical,
-              itemCount: docs.length,
-              onPageChanged: _onPageChanged,
-              itemBuilder: (context, index) => ReelWidget(
-                document: docs[index],
-                controller: _controllers[index],
-                isVisible: index == _currentPage,
+
+          if (state is ReelsError) {
+            return Center(
+              child: Text(
+                state.message,
+                style: const TextStyle(color: Colors.white),
               ),
             );
           }
-          return const SizedBox.shrink();
+
+          if (state is ReelsLoaded) {
+
+            return PageView.builder(
+
+              controller: pageController,
+              scrollDirection: Axis.vertical,
+              itemCount: reels.length,
+
+              onPageChanged: (value) {
+
+                controllers[currentPage]?.pause();
+
+                currentPage = value;
+
+                loadVideo(value);
+
+                controllers[value]?.play();
+
+                setState(() {});
+              },
+
+              itemBuilder: (context, index) {
+
+                return ReelWidget(
+                  document: reels[index],
+                  controller: controllers[index],
+                );
+              },
+            );
+          }
+
+          return const SizedBox();
         },
       ),
-      backgroundColor: Colors.black,
     );
   }
 }

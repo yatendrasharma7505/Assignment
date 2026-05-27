@@ -3,15 +3,14 @@ import 'package:cached_video_player_plus/cached_video_player_plus.dart';
 import 'package:flutter/material.dart';
 
 class ReelWidget extends StatefulWidget {
+
   final Document document;
   final CachedVideoPlayerPlusController? controller;
-  final bool isVisible;
 
   const ReelWidget({
     super.key,
     required this.document,
     required this.controller,
-    required this.isVisible,
   });
 
   @override
@@ -19,155 +18,195 @@ class ReelWidget extends StatefulWidget {
 }
 
 class _ReelWidgetState extends State<ReelWidget> {
-  bool _showPlayIcon = false;
 
-  @override
-  void didUpdateWidget(ReelWidget oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.isVisible && !oldWidget.isVisible) {
-      widget.controller?.play();
-      _showPlayIcon = false;
-    } else if (!widget.isVisible && oldWidget.isVisible) {
-      widget.controller?.pause();
-    }
-  }
-
-  void _togglePlay() {
-    final c = widget.controller;
-    if (c == null || !c.value.isInitialized) return;
-    if (c.value.isPlaying) {
-      c.pause();
-      setState(() => _showPlayIcon = true);
-    } else {
-      c.play();
-      setState(() => _showPlayIcon = false);
-    }
-  }
+  bool showPlay = false;
 
   @override
   Widget build(BuildContext context) {
+
+    final videoController = widget.controller;
+
     return Stack(
+
       fit: StackFit.expand,
+
       children: [
-        _buildVideo(),
-        _buildGradient(),
-        _buildSideActions(),
-        _buildBottomInfo(),
-        if (_showPlayIcon) _buildPlayOverlay(),
-      ],
-    );
-  }
 
-  Widget _buildVideo() {
-    final c = widget.controller;
-    if (c == null || !c.value.isInitialized) {
-      return const ColoredBox(
-        color: Colors.black,
-        child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
-      );
-    }
-    return GestureDetector(
-      onTap: _togglePlay,
-      child: FittedBox(
-        fit: BoxFit.cover,
-        child: SizedBox(
-          width: c.value.size.width,
-          height: c.value.size.height,
-          child: CachedVideoPlayerPlus(c),
-        ),
-      ),
-    );
-  }
+        if (videoController != null &&
+            videoController.value.isInitialized)
 
-  Widget _buildPlayOverlay() {
-    return Center(
-      child: Container(
-        width: 64,
-        height: 64,
-        decoration: const BoxDecoration(
-          color: Colors.black26,
-          shape: BoxShape.circle,
-        ),
-        child: const Icon(Icons.play_arrow, color: Colors.white, size: 40),
-      ),
-    );
-  }
+          GestureDetector(
 
-  Widget _buildGradient() {
-    return Positioned(
-      left: 0,
-      right: 0,
-      bottom: 0,
-      height: 200,
-      child: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Colors.transparent, Colors.black54],
+            onTap: () {
+
+              if (videoController.value.isPlaying) {
+
+                videoController.pause();
+
+                showPlay = true;
+
+              } else {
+
+                videoController.play();
+
+                showPlay = false;
+              }
+
+              setState(() {});
+            },
+
+            child: FittedBox(
+
+              fit: BoxFit.cover,
+
+              child: SizedBox(
+
+                width: videoController.value.size.width,
+                height: videoController.value.size.height,
+
+                child: CachedVideoPlayerPlus(videoController),
+              ),
+            ),
+          )
+
+        else
+
+          const Center(
+            child: CircularProgressIndicator(),
           ),
-        ),
-      ),
-    );
-  }
 
-  Widget _buildBottomInfo() {
-    return Positioned(
-      left: 16,
-      right: 72,
-      bottom: 40,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            widget.document.fields.username.stringValue,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
+        Positioned(
+
+          left: 0,
+          right: 0,
+          bottom: 0,
+
+          child: Container(
+
+            height: 200,
+
+            decoration: const BoxDecoration(
+
+              gradient: LinearGradient(
+
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+
+                colors: [
+                  Colors.transparent,
+                  Colors.black87,
+                ],
+              ),
             ),
           ),
-          const SizedBox(height: 4),
-          Text(
-            widget.document.fields.caption.stringValue,
-            style: const TextStyle(color: Colors.white, fontSize: 14),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
-      ),
-    );
-  }
+        ),
 
-  Widget _buildSideActions() {
-    return Positioned(
-      right: 12,
-      bottom: 120,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _actionButton(
-            Icons.favorite_outline,
-            widget.document.fields.likes.integerValue.toString(),
-          ),
-          const SizedBox(height: 20),
-          _actionButton(Icons.chat_outlined, ''),
-          const SizedBox(height: 20),
-          _actionButton(Icons.share_outlined, ''),
-        ],
-      ),
-    );
-  }
+        Positioned(
 
-  Widget _actionButton(IconData icon, String label) {
-    return Column(
-      children: [
-        Icon(icon, color: Colors.white, size: 30),
-        const SizedBox(height: 4),
-        if (label.isNotEmpty)
-          Text(
-            label,
-            style: const TextStyle(color: Colors.white, fontSize: 12),
+          left: 15,
+          bottom: 40,
+          right: 80,
+
+          child: Column(
+
+            crossAxisAlignment: CrossAxisAlignment.start,
+
+            children: [
+
+              Text(
+
+                widget.document.fields.username.stringValue,
+
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+
+              const SizedBox(height: 5),
+
+              Text(
+
+                widget.document.fields.caption.stringValue,
+
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        Positioned(
+
+          right: 12,
+          bottom: 100,
+
+          child: Column(
+
+            children: [
+
+              const Icon(
+                Icons.favorite_outline,
+                color: Colors.white,
+                size: 32,
+              ),
+
+              const SizedBox(height: 5),
+
+              Text(
+
+                widget.document.fields.likes.integerValue.toString(),
+
+                style: const TextStyle(
+                  color: Colors.white,
+                ),
+              ),
+
+              const SizedBox(height: 20),
+
+              const Icon(
+                Icons.chat_outlined,
+                color: Colors.white,
+                size: 32,
+              ),
+
+              const SizedBox(height: 20),
+
+              const Icon(
+                Icons.send,
+                color: Colors.white,
+                size: 32,
+              ),
+            ],
+          ),
+        ),
+
+        if (showPlay)
+
+          Center(
+
+            child: Container(
+
+              height: 70,
+              width: 70,
+
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(.4),
+                shape: BoxShape.circle,
+              ),
+
+              child: const Icon(
+                Icons.play_arrow,
+                color: Colors.white,
+                size: 40,
+              ),
+            ),
           ),
       ],
     );
